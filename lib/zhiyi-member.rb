@@ -1,0 +1,143 @@
+# -*- coding: utf-8 -*-
+require 'ldap'
+
+module Zhiyi
+  module Member
+    def self.load file
+      Ldap.load_config YAML::load(File.open(file))
+    end
+
+    class Ldap
+      @@config = nil
+      @@connect = nil
+
+      def self.load_config configure
+        @@config = configure
+      end
+
+      def self.config
+        raise "Please load config file before use me!" if @@config.nil?
+        @@config
+      end
+
+      def self.connect
+        if @@connect.nil? then
+          conn = LDAP::Conn.new(config['host'], config['port'])
+          conn.set_option(LDAP::LDAP_OPT_PROTOCOL_VERSION, 3)
+          conn.bind(config['bind']['dn'], config['bind']['passwd'])
+          conn.perror("bind")
+          @@connect = conn
+        end
+        @@connect
+      end
+    end
+
+
+
+    class User
+      # --------------------------------------------------------------------------------
+      # 用户是否存在
+      # --------------------------------------------------------------------------------
+      def self.exist? uid
+        not search("(uid=#{uid})").empty?
+      end
+
+      # --------------------------------------------------------------------------------
+      # 列出全部用户
+      # --------------------------------------------------------------------------------
+      def self.all
+        search('(objectclass=person)')
+      end
+
+      # --------------------------------------------------------------------------------
+      # 增加一个用户
+      # --------------------------------------------------------------------------------
+      def self.add person
+        entry = [LDAP.mod(LDAP::LDAP_MOD_ADD,'objectclass', Zhiyi::Member::Ldap.config['objectclass'])] +
+          (Zhiyi::Member::Ldap.config['attr'].map {|x| LDAP.mod(LDAP::LDAP_MOD_ADD, x, [person[x.to_sym]])})
+
+        begin
+          Zhiyi::Member::Ldap.connect.add("uid=#{person[:uid]},#{Zhiyi::Member::Ldap.config['base']['person']}", entry)
+        rescue LDAP::ResultError
+          raise
+        end
+      end
+
+      # --------------------------------------------------------------------------------
+      # 检查我的口令是否正确
+      # --------------------------------------------------------------------------------
+      def self.mypass? uid, mypass
+        not search("(&(uid=#{uid})(userPassword=#{mypass}))").empty?
+      end
+
+      # --------------------------------------------------------------------------------
+      # 重置口令
+      # --------------------------------------------------------------------------------
+      def self.reset_password uid, newpass
+        entry = [ LDAP.mod(LDAP::LDAP_MOD_REPLACE, 'userPassword', [newpass]) ]
+
+        begin
+          Zhiyi::Member::Ldap.connect.modify("uid=#{uid}, #{Zhiyi::Member::Ldap.config['base']['person']}", entry)
+        rescue LDAP::ResultError
+          raise
+        end
+      end
+
+      # --------------------------------------------------------------------------------
+      # 修改信息
+      # --------------------------------------------------------------------------------
+      def self.update_info uid,display
+        update_info = [ LDAP.mod(LDAP::LDAP_MOD_REPLACE, 'displayName', [display])]
+        begin
+          Zhiyi::Member::Ldap.connect.modify("uid=#{uid}, #{Zhiyi::Member::Ldap.config['base']['person']}", update_info)
+        rescue LDAP::ResultError
+          raise
+        end
+      end
+
+      # --------------------------------------------------------------------------------
+      # 删除用户
+      # --------------------------------------------------------------------------------
+      def self.delete uid
+        begin
+          Zhiyi::Member::Ldap.connect.delete("uid=#{uid}, #{Zhiyi::Member::Ldap.config['base']['person']}")
+        rescue LDAP::ResultError
+          raise
+        end
+      end
+
+      # --------------------------------------------------------------------------------
+      # 查询用户
+      # --------------------------------------------------------------------------------
+      def self.get_by_uid uid
+        search("(&(uid=#{uid}))").first
+      end
+
+
+      # ================================================================================
+      # 以下为私有方法
+      # ================================================================================
+      private
+
+      # --------------------------------------------------------------------------------
+      # 查找功能
+      # --------------------------------------------------------------------------------
+      def self.search filter
+        result = []
+        Zhiyi::Member::Ldap.connect.search(Zhiyi::Member::Ldap.config['base']['person'], 
+                                           LDAP::LDAP_SCOPE_SUBTREE,
+                                           filter,
+                                           Zhiyi::Member::Ldap.config['attr'] + ['dn']) do |entry|
+          result << ({
+                       dn: entry.dn.force_encoding('UTF-8'),
+                       display: entry.vals('displayName')[0].force_encoding('UTF-8'),
+                       uid: entry.vals('uid')[0].force_encoding('UTF-8')
+                     })
+        end
+        result
+      rescue
+        []
+      end
+    end
+  end
+end
