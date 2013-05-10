@@ -135,7 +135,7 @@ module Zhiyi
                        dn: entry.dn.force_encoding('UTF-8'),
                        display: entry.vals('displayName')[0].force_encoding('UTF-8'),
                        mail: entry.vals('mail')[0].force_encoding('UTF-8'),
-                       mobole: entry.vals('mobole')[0].force_encoding('UTF-8'),
+                       mobile: entry.vals('mobile')[0].force_encoding('UTF-8'),
                        uid: entry.vals('uid')[0].force_encoding('UTF-8')
                      })
         end
