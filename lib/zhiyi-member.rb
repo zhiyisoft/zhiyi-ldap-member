@@ -86,10 +86,13 @@ module Zhiyi
       # --------------------------------------------------------------------------------
       # 修改信息
       # --------------------------------------------------------------------------------
-      def self.update_info uid,display
-        update_info = [ LDAP.mod(LDAP::LDAP_MOD_REPLACE, 'displayName', [display])]
+      def self.update_info uid,arges
+        update_infos = []
+        arges.each do |k,v|
+          update_infos << LDAP.mod(LDAP::LDAP_MOD_REPLACE, k.to_s, [v.to_s])
+        end
         begin
-          Zhiyi::Member::Ldap.connect.modify("uid=#{uid}, #{Zhiyi::Member::Ldap.config['base']['person']}", update_info)
+          Zhiyi::Member::Ldap.connect.modify("uid=#{uid}, #{Zhiyi::Member::Ldap.config['base']['person']}", update_infos)
         rescue LDAP::ResultError
           raise
         end
@@ -131,6 +134,8 @@ module Zhiyi
           result << ({
                        dn: entry.dn.force_encoding('UTF-8'),
                        display: entry.vals('displayName')[0].force_encoding('UTF-8'),
+                       mail: entry.vals('mail')[0].force_encoding('UTF-8'),
+                       mobole: entry.vals('mobole')[0].force_encoding('UTF-8'),
                        uid: entry.vals('uid')[0].force_encoding('UTF-8')
                      })
         end
