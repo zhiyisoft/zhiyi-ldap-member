@@ -133,10 +133,10 @@ module Zhiyi
                                            Zhiyi::Member::Ldap.config['attr'] + ['dn']) do |entry|
           result << ({
                        dn: entry.dn.force_encoding('UTF-8'),
-                       display: entry.vals('displayName')[0].force_encoding('UTF-8'),
-                       mail: entry.vals('mail')[0].force_encoding('UTF-8'),
-                       mobile: entry.vals('mobile')[0].force_encoding('UTF-8'),
-                       uid: entry.vals('uid')[0].force_encoding('UTF-8')
+                       display: entry.vals('displayName').nil? ? "" : entry.vals('displayName')[0].force_encoding('UTF-8'),
+                       mail: entry.vals('mail').nil? ? "" : entry.vals('mail')[0].force_encoding('UTF-8'),
+                       mobile: entry.vals('mobile').nil? ? "" : entry.vals('mobile')[0].force_encoding('UTF-8'),
+                       uid: entry.vals('uid').nil? ? "" : entry.vals('uid')[0].force_encoding('UTF-8')
                      })
         end
         result
